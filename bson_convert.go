@@ -7,42 +7,51 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
-// ignore first, required later.
-func Convert2BSON(source interface{}, omitzero bool, requiredField []string, ignoredField []string) bson.M {
-	v := reflect.ValueOf(source)
-	sourceType := reflect.TypeOf(source)
+type bsonPattern struct {
+	required, ignored map[string]struct{}
+	omitzero          bool
+}
 
+// required first, ignored later.
+func Convert2BSON(source interface{}, omitzero bool, requiredField []string, ignoredField []string) bson.M {
 	required := make(map[string]struct{})
 	ignored := make(map[string]struct{})
 	for _, v := range requiredField {
 		required[v] = struct{}{}
 	}
 	for _, v := range ignoredField {
-		ignored[v] = struct{}{}
+		if _, require := required[v]; !require {
+			ignored[v] = struct{}{}
+		}
 	}
+	b := bsonPattern{required, ignored, omitzero}
+	return b.ConvertToBSON(source)
+}
+
+func (b *bsonPattern) ConvertToBSON(source interface{}) bson.M {
+	sourceType := reflect.TypeOf(source)
+	v := reflect.ValueOf(source)
 	res := bson.M{}
-
 	for i := 0; i < v.NumField(); i++ {
-
 		tag := sourceType.Field(i).Tag.Get("bson")
 		fields := strings.Split(tag, ",")
 		if len(fields) > 1 {
 			tag = fields[0]
 		}
-		if _, ignore := ignored[tag]; ignore {
+		if _, ignore := b.ignored[tag]; ignore {
 			continue
 		}
-		if _, require := required[tag]; !require && isEmptyValue(v.Field(i)) && omitzero {
+		if _, require := b.required[tag]; !require && isEmptyValue(v.Field(i)) && b.omitzero {
 			continue
 		}
-		res[tag] = getValue(v.Field(i), omitzero, requiredField, ignoredField)
+		res[tag] = b.getValue(v.Field(i))
 	}
 	return res
 }
 
-func getValue(v reflect.Value, omitzero bool, requiredField []string, ignoredField []string) interface{} {
+func (b *bsonPattern) getValue(v reflect.Value) interface{} {
 	if v.Kind() == reflect.Map || v.Kind() == reflect.Struct {
-		return Convert2BSON(v.Interface(), omitzero, requiredField, ignoredField)
+		return b.ConvertToBSON(v.Interface())
 	}
 	return v.Interface()
 }
