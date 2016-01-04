@@ -7,14 +7,21 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
-func Convert2BSON(source interface{}, omitzero bool, requiredField []string) bson.M {
+// ignore first, required later.
+func Convert2BSON(source interface{}, omitzero bool, requiredField []string, ignoredField []string) bson.M {
 	v := reflect.ValueOf(source)
 	sourceType := reflect.TypeOf(source)
+
 	required := make(map[string]struct{})
+	ignored := make(map[string]struct{})
 	for _, v := range requiredField {
 		required[v] = struct{}{}
 	}
+	for _, v := range ignoredField {
+		ignored[v] = struct{}{}
+	}
 	res := bson.M{}
+
 	for i := 0; i < v.NumField(); i++ {
 
 		tag := sourceType.Field(i).Tag.Get("bson")
@@ -22,15 +29,21 @@ func Convert2BSON(source interface{}, omitzero bool, requiredField []string) bso
 		if len(fields) > 1 {
 			tag = fields[0]
 		}
+		if _, ignore := ignored[tag]; ignore {
+			continue
+		}
 		if _, require := required[tag]; !require && isEmptyValue(v.Field(i)) && omitzero {
 			continue
 		}
-		res[tag] = getValue(v.Field(i))
+		res[tag] = getValue(v.Field(i), omitzero, requiredField, ignoredField)
 	}
 	return res
 }
 
-func getValue(v reflect.Value) interface{} {
+func getValue(v reflect.Value, omitzero bool, requiredField []string, ignoredField []string) interface{} {
+	if v.Kind() == reflect.Map || v.Kind() == reflect.Struct {
+		return Convert2BSON(v.Interface(), omitzero, requiredField, ignoredField)
+	}
 	return v.Interface()
 }
 
