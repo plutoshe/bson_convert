@@ -33,18 +33,20 @@ func (b *bsonPattern) ConvertToBSON(source interface{}) bson.M {
 	v := reflect.ValueOf(source)
 	res := bson.M{}
 	for i := 0; i < v.NumField(); i++ {
-		tag := sourceType.Field(i).Tag.Get("bson")
-		fields := strings.Split(tag, ",")
-		if len(fields) > 1 {
-			tag = fields[0]
+		if sourceType.Field(i).Name[0] >= 'A' && sourceType.Field(i).Name[0] <= 'Z' {
+			tag := sourceType.Field(i).Tag.Get("bson")
+			fields := strings.Split(tag, ",")
+			if len(fields) > 1 {
+				tag = fields[0]
+			}
+			if _, ignore := b.ignored[tag]; ignore {
+				continue
+			}
+			if _, require := b.required[tag]; !require && isEmptyValue(v.Field(i)) && b.omitzero {
+				continue
+			}
+			res[tag] = b.getValue(v.Field(i))
 		}
-		if _, ignore := b.ignored[tag]; ignore {
-			continue
-		}
-		if _, require := b.required[tag]; !require && isEmptyValue(v.Field(i)) && b.omitzero {
-			continue
-		}
-		res[tag] = b.getValue(v.Field(i))
 	}
 	return res
 }
