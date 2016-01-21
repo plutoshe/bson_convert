@@ -1,7 +1,6 @@
 package bson_convert
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 
@@ -61,8 +60,9 @@ func TestConvertToBSON(t *testing.T) {
 			true,
 			[]string{},
 			[]string{},
-			bson.M{"c": []int{32, 123, 32}, "d": bson.M{}},
+			bson.M{"c": []int{32, 123, 32}},
 		},
+		// require more specific attr after involving its fathers attr into required field
 		{
 			testStructure{
 				0,
@@ -71,7 +71,7 @@ func TestConvertToBSON(t *testing.T) {
 				substructure{"", []int{}},
 			},
 			true,
-			[]string{"a", "b", "e"},
+			[]string{"a", "b", "d", "e"},
 			[]string{},
 			bson.M{"a": 0, "b": "", "c": []int{32, 123, 32}, "d": bson.M{"e": ""}},
 		},
@@ -103,7 +103,7 @@ func TestConvertToBSON(t *testing.T) {
 	for i, v := range testcases {
 		res := Convert2BSON(v.source, v.omitted, v.required, v.ignored)
 		if !reflect.DeepEqual(v.res, res) {
-			fmt.Printf("#%d: Convert result is wrong! Want = %v, Get = %v.\n", i, v.res, res)
+			t.Errorf("#%d: Convert result is wrong! Want = %v, Get = %v.\n", i, v.res, res)
 		}
 	}
 }

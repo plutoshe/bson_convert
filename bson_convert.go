@@ -61,7 +61,7 @@ func (b *bsonPattern) ConvertToBSON(source interface{}) bson.M {
 
 func (b *bsonPattern) getValue(v reflect.Value) interface{} {
 	if v.Type() != reflect.TypeOf(time.Time{}) && (v.Kind() == reflect.Map || v.Kind() == reflect.Struct) {
-		return b.ConvertToBSON(v)
+		return b.ConvertToBSON(v.Interface())
 	}
 	return v.Interface()
 }
